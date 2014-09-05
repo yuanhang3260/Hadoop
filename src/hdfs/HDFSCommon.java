@@ -7,7 +7,7 @@ import java.util.Date;
 import java.util.List;
 
 /**
- * An abstraction of files stored on DFS
+ * HDFS global parameters
  *
  * @author Hang Yuan
  * @author Chuhan Yang
