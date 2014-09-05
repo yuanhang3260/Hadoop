@@ -9,6 +9,8 @@ import java.util.List;
 /**
  * An abstraction of files stored on DFS
  *
+ * @author Hang Yuan
+ * @author Chuhan Yang
  */
 public class HDFSCommon implements Serializable {
 
