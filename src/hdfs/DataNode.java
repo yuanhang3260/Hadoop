@@ -13,49 +13,54 @@ import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.concurrent.ConcurrentHashMap;
 
+import hdfs.HDFSCommon;
 import hdfs.FileIO;
+import hdfs.HDFSChunk;
 
 /**
- * This class is the main thread to start a data node in DFS.
+ * DataNode Class
  * It provides remote services for name nodes and clients to upload, query
  * data.
+ *
+ * @author Hang Yuan
+ * @author Chuhan Yang
  */
 public class DataNode extends UnicastRemoteObject implements DataNodeInterface {
 
 	private static final long serialVersionUID = 7965875955130649094L;
-	/**DFSClient RMI service name, read from dfs.conf*/
+	/** DFSClient RMI service name */
 	private String clientServiceName;
-	/**Maximum chunk slot in each DataNode, read from dfs.conf*/
+	/** Maximum chunk slot in each DataNode */
 	private Integer maxChunkSlot;
-	/**Registry service port on DataNode, read from dfs.conf*/
+	/** Registry service port on DataNode */
 	private Integer dataNodeRegPort;
-	/**RMI service port on DataNode, read from dfs.conf*/
+	/** RMI service port on DataNode */
 	private Integer dataNodePort;
-	/**DataNOde RMI service name, read from dfs.conf*/
+	/** DataNOde RMI service name */
 	private String dataNodeService;
-	/**Storage path on DataNode, read from dfs.conf*/
+	/** Storage path on DataNode */
 	private String dataNodePath;
-	/**Available chunk slots on DataNode, read from dfs.conf*/
+	/** Available chunk slots on DataNode */
 	private Integer availableChunkSlot;
-	/**NameNode IP address, read from dfs.conf*/
+	/** NameNode IP address */
 	private String nameNodeIP;
-	/**NameNode registry service port, read from dfs.conf*/
+	/** NameNode registry service port */
 	private Integer nameNodeRegPort;
-	/**NameNode RMI service name, read from dfs.conf*/
+	/** NameNode RMI service name */
 	private String nameNodeService;
-	/**NameNode RMI service remote object, created when initializing DataNode.*/
+	/** NameNode RMI service remote object, created when initializing DataNode.*/
 	private Registry nameNodeRegistry;
-	/**RMI stub object. Cached once created.*/
+	/** RMI stub object. Cached once created.*/
 	private NameNodeInterface nameNode;
-	/**Current DataNode RMI service.*/
+	/** Current DataNode RMI service.*/
 	private static Registry dataNodeRegistry;
-	/**Connection cache pool of RMI services to other DataNodes.*/
+	/** Connection cache pool of RMI services to other DataNodes.*/
 	private Hashtable<String, DataNodeInterface> dataNodeList = new Hashtable<String, DataNodeInterface>();
-	/**File list on this DataNode.*/
+	/** File list on this DataNode.*/
 	private ConcurrentHashMap<String, HashSet<Integer>> fileList = new ConcurrentHashMap<String, HashSet<Integer>>();
-	/**A flag that used to shut down this DataNode.*/
+	/** A flag that used to shut down this DataNode.*/
 	private boolean isRunning;
-	/**Slots that are assigned but not necessarily occupied.*/
+	/** Slots that are assigned but not necessarily occupied.*/
 	private int reservedSlot;
 	
 	
