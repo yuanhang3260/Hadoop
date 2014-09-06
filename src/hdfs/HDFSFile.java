@@ -35,14 +35,22 @@ public class HDFSFile implements Serializable {
     /**
      * Constructor
      * @param name file name
-     * @param stub NameNode RMI interface stub
      */
-    public HDFSFile(String name, NameNodeInterface stub) {
+    public HDFSFile(String name) {
         this.name = name;
         this.chunkList = new ArrayList<HDFSChunk>();
         this.replicaFactor = DFT_REPLICAS;
     }
     
+
+    /**
+     * remove HDFS chunk from the file
+     * @param index chunk index in this file
+     */
+    public void addChunk(HDFSChunk chunk) {
+        this.chunkList.add(chunk);
+    }
+
     /**
      * remove HDFS chunk from the file
      * @param index chunk index in this file
@@ -69,7 +77,7 @@ public class HDFSFile implements Serializable {
     /**
      * get chunkList
      */
-    public List<HDFSChunk> getChunkList() {
+    public ArrayList<HDFSChunk> getChunkList() {
         return this.chunkList;
     }
     
