@@ -3,6 +3,7 @@ package hdfs;
 import java.io.Serializable;
 import java.util.Date;
 import java.util.List;
+import java.util.ArrayList;
 
 import hdfs.HDFSCommon;
 import hdfs.DataNodeInfo;
@@ -17,7 +18,7 @@ public class HDFSChunk implements Serializable {
     /** serialVersionUID */
     private static final long serialVersionUID = -253895999225595586L;
     /** HDFS file name */
-    private HDFSFile fileName;
+    private String fileName;
     /** chunk name = FileName_ChunkNum */
     private String chunkName;
     /** replica locations in dataNodes */
@@ -55,7 +56,7 @@ public class HDFSChunk implements Serializable {
      * remove a replica DataNode from location list
      * @param entry DataNode to be removed from location list
      */
-    public void removeReplicaDataNode(getDataNodeInfo entry) {
+    public void removeReplicaDataNode(DataNodeInfo entry) {
         this.locations.remove(entry);
     }
     
@@ -90,7 +91,7 @@ public class HDFSChunk implements Serializable {
      * get replica DataNode list
      * @return list of getDataNode
      */
-    public ArrayList<getDataNodeInfo> getReplicaDataNodes() {
+    public ArrayList<DataNodeInfo> getReplicaDataNodes() {
         return this.locations;
     }
     

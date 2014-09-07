@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public interface DataNodeInterface extends Remote {
 
-	/**
+    /**
      * Fetch a chunk of file.
      * @param filename String The name of the file.
      * @param chunkNum Integer The chunk number of file to be fetched.
@@ -32,15 +32,6 @@ public interface DataNodeInterface extends Remote {
      * @throws RemoteException
      */
     public void addChunk(String filename, byte[] chunk, int chunkNum, String fromIP, int RMIPort) throws RemoteException;
-    
-    /**
-     * Download a file chunk from another data node.
-     * @param filename String The name of the file.
-     * @param chunkNum Integer The chunk number of this file to be download.
-     * @param fromIP String The IP address to download file chunk from.
-     * @throws RemoteException
-     */
-    public void uploadChunk(String filename, int chunkNum, String fromIP) throws RemoteException;
 
     /**
      * Remove a file from this data node. 
@@ -48,14 +39,14 @@ public interface DataNodeInterface extends Remote {
      * @param chunkNum Integer The chunk number of file to be deleted.
      * @throws RemoteException
      */
-    public void removeFile(String filename, int chunkNum) throws RemoteException;
+    public void removeFile(String filename) throws RemoteException;
     
     /**
-     * Heartbeat method to check if data node is alive.
-     * @return True
+     * Heartbeat send heart beat message to NameNode
+     * @return file list of this DataNode
      * @throws RemoteException
      */
-    public boolean heartbeat() throws RemoteException;
+    public ConcurrentHashMap<String, HDFSFile> heartBeat() throws RemoteException;
     
     /**
      * Check if a specific chunk of file is on this data node.
@@ -71,4 +62,5 @@ public interface DataNodeInterface extends Remote {
      * @throws RemoteException
      */
     public void terminate() throws RemoteException;
+
 }

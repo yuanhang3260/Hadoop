@@ -15,9 +15,9 @@ import java.util.List;
 public class HDFSCommon implements Serializable {
 
 	/** default chunk size = 4KB */
-	public final int DFT_CHUNK_SIZE = 4 * 1024;
+	public static final int DFT_CHUNK_SIZE = 4 * 1024;
 	/** default file replica factor = 3 */
-	public final int DFT_REPLICAS = 3;
+	public static final int DFT_REPLICAS = 3;
 
 }
 

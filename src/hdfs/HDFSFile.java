@@ -8,7 +8,6 @@ import java.util.List;
 
 import hdfs.HDFSCommon;
 import hdfs.DataNodeInfo;
-import hdfs.NameNodeInterface;
 
 /**
  * An abstraction of HDFS files
@@ -26,8 +25,6 @@ public class HDFSFile implements Serializable {
     private ArrayList<HDFSChunk> chunkList;
     /** ?? replica factor */
     private int replicaFactor;
-    /** OutputStream */
-    private HDFSOutputStream newOutputStream = null;
     /** ?? commit time */
     private Date commitTime = null;
 
@@ -39,12 +36,12 @@ public class HDFSFile implements Serializable {
     public HDFSFile(String name) {
         this.name = name;
         this.chunkList = new ArrayList<HDFSChunk>();
-        this.replicaFactor = DFT_REPLICAS;
+        this.replicaFactor = HDFSCommon.DFT_REPLICAS;
     }
     
 
     /**
-     * remove HDFS chunk from the file
+     * add a chunk to the file
      * @param index chunk index in this file
      */
     public void addChunk(HDFSChunk chunk) {
@@ -52,11 +49,18 @@ public class HDFSFile implements Serializable {
     }
 
     /**
-     * remove HDFS chunk from the file
+     * remove HDFS chunk from the file by object
+     * @param index chunk index in this file
+     */
+    public void removeChunk(HDFSChunk chunk) {
+        this.chunkList.remove(chunk);
+    }
+    
+    /**
+     * overload method : remove HDFS chunk from the file by index
      * @param index chunk index in this file
      */
     public void removeChunk(int index) {
-        // TODO delete the chunk file from dataNode ?
         this.chunkList.remove(index);
     }
     
@@ -70,7 +74,7 @@ public class HDFSFile implements Serializable {
             return null;
         }
         else {
-            return chunkList.get(index) {
+            return chunkList.get(index);
         }
     }
         
@@ -93,13 +97,6 @@ public class HDFSFile implements Serializable {
      */
     public int getReplicaFactor() {
         return this.replicaFactor;
-    }
-    
-    /**
-     * get Input Srream
-     */
-    public HDFSInputStream getInputStream() {
-        return new HDFSInputStream(this.getChunkList());
     }
     
     /**

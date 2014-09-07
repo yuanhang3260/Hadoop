@@ -11,6 +11,7 @@ import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.HashSet;
 import java.util.Hashtable;
+import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 
 import hdfs.HDFSCommon;
@@ -81,19 +82,19 @@ public class DataNode extends UnicastRemoteObject implements DataNodeInterface {
      * and retrieve services.
      */
     public void init() {
-        try {
-        	/* connect to NameNode */
-            System.out.println("Connecting to name node...");
-            this.nameNodeRegistry = LocateRegistry.getRegistry(this.nameNodeIP);
-            this.nameNode = (NameNodeInterface) this.nameNodeRegistry.lookup(this.nameNodeService);
+        // try {
+        //     /* connect to NameNode */
+        //     System.out.println("Connecting to name node...");
+        //     this.nameNodeRegistry = LocateRegistry.getRegistry(this.nameNodeIP);
+        //     this.nameNode = (NameNodeInterface) this.nameNodeRegistry.lookup(this.nameNodeService);
 
-            /* register DataNode on NameNode by calling NameNode RMI "registerDataNode"*/
-            this.nameNode.registerDataNode(InetAddress.getLocalHost().getHostAddress(), this.availableChunkSlot);
-        } catch (RemoteException | NotBoundException | UnknownHostException e) {
-            e.printStackTrace();
-            System.err.println("[Error]: Connecting to NameNode " + nameNodeIP + ":" + nameNodeRegPort + " failed");
-            System.exit(-1);
-        }
+        //     /* register DataNode on NameNode by calling NameNode RMI "registerDataNode"*/
+        //     this.nameNode.registerDataNode(InetAddress.getLocalHost().getHostAddress(), this.availableChunkSlot);
+        // } catch (RemoteException | NotBoundException | UnknownHostException e) {
+        //     e.printStackTrace();
+        //     System.err.println("[Error]: Connecting to NameNode " + nameNodeIP + ":" + nameNodeRegPort + " failed");
+        //     System.exit(-1);
+        // }
     }
 
     
@@ -105,8 +106,12 @@ public class DataNode extends UnicastRemoteObject implements DataNodeInterface {
      * @throws RemoteException
      */
     @Override
-    public byte[] getFile(String filename, int chunkNum) throws RemoteException 
+    public byte[] readChunk(String filename, int chunkNum) throws RemoteException 
     {
+    	if (!hasChunk(filename, chunkNum)) {
+    		return null;
+    	}
+
         byte[] chunk;
         try {
             chunk = FileIO.readFile(this.dataNodePath + filename + "_" + chunkNum);
@@ -121,22 +126,27 @@ public class DataNode extends UnicastRemoteObject implements DataNodeInterface {
     }
 
 
-    /** 
-	 * RMI call : Client or other DataNode writes chunk to this dataNode.
-	 * @param filename String The name of file to be uploaded.
-	 * @param chunk	byte[] The content of file chunk.
-	 * @param chunkNum Integer The number of chunk to be uploaded.
-	 * @param fromIP String The ip address where this file chunk is uploaded from.
-	 * @throws RemoteException
-	 */
+    /**
+     * RMI call : Client or other DataNode writes chunk to this dataNode.
+     * @param filename String The name of file to be uploaded.
+     * @param chunk    byte[] The content of file chunk.
+     * @param chunkNum Integer The number of chunk to be uploaded.
+     * @param fromIP String The ip address where this file chunk is uploaded from.
+     * @throws RemoteException
+     */
     @Override
     public void addChunk(String filename, byte[] buf, int chunkNum, String fromIP, int clientRMIPort)
             throws RemoteException 
     {
+    	if (hasChunk(filename, chunkNum)) {
+    		System.err.println("[Error**] " + filename + "_" + chunkNum + " already exists");
+    		return;
+    	}
+
         try {
-        	/* write file on to local storage */
-            FileIO.writeBinary(buf, this.dataNodePath + filename + "_" + chunkNum);        
-            System.err.println(filename + "_" + chunkNum + " written to " + this.dataNodePath);
+            /* write file on to local storage */
+            FileIO.writeFile(buf, this.dataNodePath + filename + "_" + chunkNum);        
+            System.err.println("[Error**] " + filename + "_" + chunkNum + " written to " + this.dataNodePath);
         } 
         catch (IOException e) {
             e.printStackTrace();
@@ -144,78 +154,41 @@ public class DataNode extends UnicastRemoteObject implements DataNodeInterface {
             throw new RemoteException("[Error] IO exception occuring when writing file " + filename);
         }
         
-        try {
-        	/* feedback acknowledge to client */
-        	// TODO: should put a time limit here when trying connecting to client?
-            System.out.println("[LOG] Connecting to client " + fromIP + "...");
-            Registry clientRegistry = LocateRegistry.getRegistry(fromIP, clientRMIPort);        
-            DFSClientInterface client = (DFSClientInterface) clientRegistry.lookup(this.clientServiceName);
-            client.sendChunkReceivedACK(InetAddress.getLocalHost().getHostAddress(), filename, chunkNum);
-            System.out.println("[LOG] Client " + fromIP + " acknowledged.");
-        }
-        catch (NotBoundException | UnknownHostException e) {
-            e.printStackTrace();
-            System.err.println("[Error**)] Unable to connect to client");
-            try {
-            	/* delete the chunk that has been writen to disk */
-                FileIO.deleteFile(dataNodePath + filename + "_" + chunkNum);
-                System.out.println("[LOG] Removed " + filename + "_" + chunkNum + "because cannot feedback to client");
-            }
-            catch (IOException e1) {
-                System.out.println("[Error**] Exception occurs when removing" + filename + "_" + chunkNum);
-            }
-            throw new RemoteException();
-        }
+        // try {
+        //     /* feedback acknowledge to client (really need this?) */
+        //     // TODO: should put a time limit here when trying connecting to client?
+        //     System.out.println("[LOG] Connecting to client " + fromIP + "...");
+        //     Registry clientRegistry = LocateRegistry.getRegistry(fromIP, clientRMIPort);        
+        //     DFSClientInterface client = (DFSClientInterface) clientRegistry.lookup(this.clientServiceName);
+        //     client.sendChunkReceivedACK(InetAddress.getLocalHost().getHostAddress(), filename, chunkNum);
+        //     System.out.println("[LOG] Client " + fromIP + " acknowledged.");
+        // }
+        // catch (NotBoundException | UnknownHostException e) {
+        //     e.printStackTrace();
+        //     System.err.println("[Error**)] Unable to connect to client");
+        //     try {
+        //         /* delete the chunk that has been writen to disk */
+        //         FileIO.deleteFile(dataNodePath + filename + "_" + chunkNum);
+        //         System.out.println("[LOG] Removed " + filename + "_" + chunkNum + "because cannot feedback to client");
+        //     }
+        //     catch (IOException e1) {
+        //         System.out.println("[Error**] Exception occurs when removing" + filename + "_" + chunkNum);
+        //     }
+        //     throw new RemoteException();
+        // }
         
         /* update local file list */
         if (this.fileList.containsKey(filename)) {
-        	HDFSFile file = this.fileList.get(filename);
+            HDFSFile file = this.fileList.get(filename);
+            file.addChunk(new HDFSChunk(filename, chunkNum));
         }
         else {
-            HDFSFile file = new HDFSFile(filename, );
+            HDFSFile file = new HDFSFile(filename);
+            file.addChunk(new HDFSChunk(filename, chunkNum));
         }
-        addChunk.addChunk(new HDFSChunk(filename, chunkNum));
 
         // TODO: add replicas in other dataNodes?
         return;
-    }
-    
-
-    /**
-     * RMI call : ???
-     * @param filename String The name of the file.
-     * @param chunkNum Integer The chunk number of this file to be download.
-     * @param fromIP String The IP address to download file chunk from.
-     * @throws RemoteException
-     */
-    @Override
-    public void uploadChunk(String filename, int chunkNum, String fromIP) throws RemoteException 
-    {
-        if (!this.dataNodeList.containsKey(fromIP)) {
-        	/* cache connection to other data nodes */
-            try {
-                Registry dataNodeRegistry = LocateRegistry.getRegistry(fromIP, this.dataNodeRegPort);
-                DataNodeInterface dataNode = (DataNodeInterface) dataNodeRegistry.lookup(dataNodeService);
-                this.dataNodeList.put(fromIP, dataNode);
-            }
-            catch (RemoteException | NotBoundException e) {
-                e.printStackTrace();
-                System.out.println("Cannot connect to client " + fromIP);
-                throw (new RemoteException());
-            }
-        }
-        
-        try {
-        	/* download chunks from other data node */
-            byte[] chunk = this.dataNodeList.get(fromIP).getFile(filename, chunkNum);
-            FileIO.writeBinary(chunk, dataNodePath + filename + "_" + chunkNum);
-            System.out.println(filename + "_" + chunkNum + " has been downloaded...");
-        }
-        catch (IOException e) {
-            e.printStackTrace();
-            System.out.println("IO exception occurs when removing " + filename + "_" + chunkNum);
-            throw (new RemoteException());
-        }
     }
 
 
@@ -226,21 +199,20 @@ public class DataNode extends UnicastRemoteObject implements DataNodeInterface {
      */
     public void removeFile(String filename) throws RemoteException
     {
-    	HDFSFile file = this.fileList.get(filename);
+        HDFSFile file = this.fileList.get(filename);
         if (file == null) {
-        	System.out.println("[Error**] " + filename + "not found");
+            System.out.println("[Error**] " + filename + "not found");
             return;
         }
-
-   
-    	ArrayList<HDFSChunk> chunklist = file.getChunkList();
-    	for (HDFSChunk chunk : chunklist) {
-    		removeChunk(chunk.getChunkName());
-    		file.removeChunk(chunk);
-    	}
+   		
+        ArrayList<HDFSChunk> chunklist = file.getChunkList();
+        for (HDFSChunk chunk : chunklist) {
+            removeChunk(chunk.getChunkName());
+            file.removeChunk(chunk);
+        }
         
         this.fileList.remove(filename);
-        System.out.println("[LOG] " + filename + "_" + chunkNum + " successfully deleted");
+        System.out.println("[LOG] " + filename + " successfully deleted");
         
         // TODO: remove replicas in other dataNodes?
         return;
@@ -248,12 +220,11 @@ public class DataNode extends UnicastRemoteObject implements DataNodeInterface {
 
 
     /**
-	 * private method : Delete a specific chunk of a file from this data node. 
-	 * @param filename String The name of the file.
-	 * @param chunkNum Integer The chunk number of file to be deleted.
-	 * @throws RemoteException
-	 */
-    @Override
+     * private method : Delete a specific chunk of a file from this data node. 
+     * @param filename String The name of the file.
+     * @param chunkNum Integer The chunk number of file to be deleted.
+     * @throws RemoteException
+     */
     private void removeChunk(String chunkName) throws RemoteException 
     {
         try {
@@ -270,14 +241,14 @@ public class DataNode extends UnicastRemoteObject implements DataNodeInterface {
     }
 
 
-	/**
-     * Heartbeat method to check if data node is alive.
-     * @return True
+    /**
+     * Heartbeat send heart beat message to NameNode
+     * @return file list of this DataNode
      * @throws RemoteException
      */
     @Override
-    public boolean heartbeat() throws RemoteException {
-        return true;
+    public ConcurrentHashMap<String, HDFSFile> heartBeat() throws RemoteException {
+        return this.fileList;
     }
 
 
@@ -292,62 +263,74 @@ public class DataNode extends UnicastRemoteObject implements DataNodeInterface {
     public boolean hasChunk(String filename, int chunkNum) throws RemoteException {
         HDFSFile file = this.fileList.get(filename);
         if (file == null) {
-        	return false;
+            return false;
         }
-        // TOOD: how to check chunk?
+        
+        ArrayList<HDFSChunk> chunklist = file.getChunkList();
+        for (HDFSChunk chunk : chunklist) {
+            if (chunk.getChunkName().equals(filename + "_" + chunkNum)) {
+            	return true;
+            }
+        }
+        return false;
     }
 
+    
+    /**
+     * Terminate this data node.
+     * @throws RemoteException
+     */
     @Override
     public void terminate() {
         this.isRunning = false;
     }
 
 
-	/**
-	 * Main method : Start up the DataNode
-	 */
+    /**
+     * Main method : Start up the DataNode
+     */
     public static void main(String[] args) {
-        System.out.println("Starting data node server...");
-        DataNode dataNode = null;
-        try {
-            dataNode = new DataNode();
-        } catch (RemoteException e2) {
-            e2.printStackTrace();
-            System.exit(-1);
-        }
+        // System.out.println("Starting data node server...");
+        // DataNode dataNode = null;
+        // try {
+        //     dataNode = new DataNode();
+        // } catch (RemoteException e2) {
+        //     e2.printStackTrace();
+        //     System.exit(-1);
+        // }
         
-        //read configuration file
-        System.out.println("Loading configuration data...");
-        try {
-            FileIO.readConf(PathConfiguration.DFSConfPath, dataNode);
-            System.out.println("Configuration data loaded successfully...");
-        } catch (IOException e1) {
-            e1.printStackTrace();
-            System.out.println("Loading configuration failed...");
-            System.exit(-1);
-        }
+        // //read configuration file
+        // System.out.println("Loading configuration data...");
+        // try {
+        //     FileIO.readConf(PathConfiguration.DFSConfPath, dataNode);
+        //     System.out.println("Configuration data loaded successfully...");
+        // } catch (IOException e1) {
+        //     e1.printStackTrace();
+        //     System.out.println("Loading configuration failed...");
+        //     System.exit(-1);
+        // }
         
-        try {    //set up registry
-            System.out.println("Setting up registry server...");
-            unexportObject(dataNode, false);
-            DataNodeInterface stub = (DataNodeInterface) exportObject(dataNode, dataNode.dataNodePort);
-            dataNodeRegistry = LocateRegistry.createRegistry(dataNode.dataNodeRegPort);
-            dataNodeRegistry.rebind(dataNode.dataNodeService, stub);
-        } catch (RemoteException e) {
-            e.printStackTrace();
-            System.err.println("System initialization failed...");
-            System.exit(-1);
-        }
+        // try {    //set up registry
+        //     System.out.println("Setting up registry server...");
+        //     unexportObject(dataNode, false);
+        //     DataNodeInterface stub = (DataNodeInterface) exportObject(dataNode, dataNode.dataNodePort);
+        //     dataNodeRegistry = LocateRegistry.createRegistry(dataNode.dataNodeRegPort);
+        //     dataNodeRegistry.rebind(dataNode.dataNodeService, stub);
+        // } catch (RemoteException e) {
+        //     e.printStackTrace();
+        //     System.err.println("System initialization failed...");
+        //     System.exit(-1);
+        // }
         
-        /* setup connections */
-        dataNode.init();
+        // /* setup connections */
+        // dataNode.init();
         
-        System.out.println("System is running...");
-        while (dataNode.isRunning) {
-            /* doing nothing, just waiting */
-        }
+        // System.out.println("System is running...");
+        // while (dataNode.isRunning) {
+        //     /* doing nothing, just waiting */
+        // }
 
-        //shutting down
-        System.out.println("System is shutting down...");
+        // //shutting down
+        // System.out.println("System is shutting down...");
     }
 }
