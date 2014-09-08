@@ -83,8 +83,15 @@ public class HDFSClient extends UnicastRemoteObject implements HDFSClientInterfa
     
     public static void main(String[] args) throws Exception, IOException {
         System.out.println("[LOG] Starting client server...");
-        HDFSClient client = new HDFSClient();
-        
+        HDFSClient client = null;
+        try {
+            client = new HDFSClient();
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            return;
+        }
+
         System.out.println("[^_^] Welcome to use HDFS Client v0.1");
         System.out.println("[^_^] For more information, please type: \"help\"");
         boolean exit = false;
@@ -95,7 +102,8 @@ public class HDFSClient extends UnicastRemoteObject implements HDFSClientInterfa
             String command;
             try {
                 command = br.readLine();
-            } catch (IOException e) {
+            }
+            catch (IOException e) {
                 continue;
             }
             
