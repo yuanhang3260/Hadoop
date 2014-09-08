@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import hdfs.HDFSCommon;
 import hdfs.DataNodeInfo;
 
-/** 
+/**
  * HDFS file chunk class
  * @author Hang Yuan
  * @author Chuhan Yang
@@ -19,15 +19,14 @@ public class HDFSChunk implements Serializable {
     private static final long serialVersionUID = -253895999225595586L;
     /** HDFS file name */
     private String fileName;
+    /** chunk num */
+    private int chunkNum;
     /** chunk name = FileName_ChunkNum */
     private String chunkName;
-    /** replica locations in dataNodes */
-    private ArrayList<DataNodeInfo> locations;
     /** Chunk size */
     private int chunk_size;
-    /** ?? commit time */
-    private Date commitTime;
-    
+    /** replica locations in dataNodes */
+    private ArrayList<DataNodeInfo> locations;
 
     /** 
      * HDFSChunk Constructor
@@ -37,6 +36,7 @@ public class HDFSChunk implements Serializable {
      */
     public HDFSChunk(String fileName, int chunkNum) {
         this.fileName = fileName;
+        this.chunkNum = chunkNum;
         this.chunkName = fileName + "_" + Integer.toString(chunkNum);
         this.chunk_size= HDFSCommon.DFT_CHUNK_SIZE; // default chunk size = 4KB
         this.locations = new ArrayList<DataNodeInfo>();
@@ -86,6 +86,14 @@ public class HDFSChunk implements Serializable {
     public String getChunkName() {
         return this.chunkName;
     }
+
+    /**
+     * get chunk num
+     * @return chunk name
+     */
+    public String getChunkNum() {
+        return this.chunkNum;
+    }    
     
     /**
      * get replica DataNode list
@@ -96,35 +104,11 @@ public class HDFSChunk implements Serializable {
     }
     
     /**
-     * update Chunk size
-     * @param len length of chunk size to increase
-     */
-    public void updateChunkSize(int len) {
-        this.chunk_size += len;
-    }
-    
-    /**
      * get current chunk size
      * @return chunk size;
      */
     public int getChunkSize() {
         return this.chunk_size;
-    }
-    
-    /**
-     * set commit time
-     * @param time commit time to set
-     */
-    public void setCommitTime(Date time) {
-        this.commitTime = time;
-    }
-    
-    /**
-     * get commit time;
-     * @return commit time
-     */
-    public Date getCommitTime() {
-        return this.commitTime;
     }
     
 }

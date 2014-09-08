@@ -3,11 +3,13 @@ package hdfs;
 import java.io.Serializable;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 import hdfs.HDFSCommon;
 import hdfs.DataNodeInfo;
+import hdfs.HDFSFileMeta;
+
+import hdfs.HDFSFileMeta;
 
 /**
  * An abstraction of HDFS files
@@ -15,102 +17,42 @@ import hdfs.DataNodeInfo;
  * @author Hang Yuan
  * @author Chuhan Yang
  */
-public class HDFSFile implements Serializable {
+public class HDFSFile extends HDFSFileMeta implements Serializable {
 
     /** serialVersionUID */
     private static final long serialVersionUID = -6302186159396021997L;
-    /** file name */
-    private String name;
-    /** chunk list */
-    private ArrayList<HDFSChunk> chunkList;
-    /** ?? replica factor */
-    private int replicaFactor;
-    /** ?? commit time */
-    private Date commitTime = null;
+    /** chunk table maps chunkNum -> chunk object*/
+    private ConcurrentHashMap<Integer, HDFSChunk> chunkTable;
 
-    
     /**
      * Constructor
      * @param name file name
      */
-    public HDFSFile(String name) {
-        this.name = name;
-        this.chunkList = new ArrayList<HDFSChunk>();
-        this.replicaFactor = HDFSCommon.DFT_REPLICAS;
+    public HDFSFile(String name, int size) {
+        this.super(name, size);
+        chunkList = new ConcurrentHashMap<Integer, HDFSChunk>();
     }
     
+    /** get chunkList */
+    public ConcurrentHashMap<Integer, HDFSChunk> getChunkTable() {
+        return this.chunkList;
+    }
 
     /**
      * add a chunk to the file
      * @param index chunk index in this file
      */
     public void addChunk(HDFSChunk chunk) {
-        this.chunkList.add(chunk);
-    }
-
-    /**
-     * remove HDFS chunk from the file by object
-     * @param index chunk index in this file
-     */
-    public void removeChunk(HDFSChunk chunk) {
-        this.chunkList.remove(chunk);
+        this.chunkList.put(chunk.getChunkNum(), chunk);
     }
     
     /**
      * overload method : remove HDFS chunk from the file by index
      * @param index chunk index in this file
      */
-    public void removeChunk(int index) {
-        this.chunkList.remove(index);
-    }
-    
-    
-    /**
-     * search for chunk by index
-     * @param index Chunk index in this file
-     */
-    public HDFSChunk getChunkByIndex(int index) {
-        if (index < 0 || index >= chunkList.size()) {
-            return null;
-        }
-        else {
-            return chunkList.get(index);
-        }
-    }
-        
-    /**
-     * get chunkList
-     */
-    public ArrayList<HDFSChunk> getChunkList() {
-        return this.chunkList;
-    }
-    
-    /**
-     * get file name
-     */
-    public String getName() {
-        return this.name;
+    public void removeChunk(int chunkNum) {
+        this.chunkList.remove(chunkNum);
     }
 
-    /**
-     * ?? get ReplicaFactor
-     */
-    public int getReplicaFactor() {
-        return this.replicaFactor;
-    }
-    
-    /**
-     * set commit time
-     */
-    public void setCommitTime(Date time) {
-        this.commitTime = time;
-    }
-    
-    /**
-     * get commit time
-     */
-    public Date getCommitTime() {
-        return this.commitTime;
-    }
 }
 

@@ -195,6 +195,48 @@ public class FileIO {
 
 
     /**
+     * Append data into one file.
+     * @param filePath String The path of file to be appended to.
+     * @param content byte[] The content of chunks to be appended.
+     * @throws IOException
+     */
+    public static void appendFile(String filePath, byte[] content) throws IOException {
+        int index = filePath.length() - 1;
+        while(index >= 0 && filePath.charAt(index) != '/') {
+            index--;
+        }
+        String dir = filePath.substring(0, index);
+        
+        File fileDir = new File(dir);
+        if(!fileDir.exists()) {
+            System.out.println("create dir: " + dir);
+            fileDir.mkdirs();
+        }
+        
+        File file = new File(filePath);
+        if (!file.exists()) {
+            try {
+                file.createNewFile();
+            }
+            catch (IOException e) {
+                throw new IOException(e.toString());
+            }
+        }
+        
+        try {
+            FileWriter out = null;
+            out = new FileWriter(file, true);
+            for (byte b : content)
+                out.append((char) b);
+            out.close();
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+            throw e;
+        }
+    }
+
+    /**
      * Remove a file from local storage.
      * @param filePath String File path to be deleted.
      * @throws IOException
@@ -237,48 +279,6 @@ public class FileIO {
         }
         return chunk;
     }
-
-
-    /**
-     * Append chunks into one file.
-     * @param filePath String The path of file to be appended to.
-     * @param content byte[] The content of chunks to be appended.
-     * @throws IOException
-     */
-    public static void appendBytesToFile(String filePath, byte[] content) throws IOException {
-        int index = filePath.length() - 1;
-        while(index >= 0 && filePath.charAt(index) != '/') {
-            index--;
-        }
-        String dir = filePath.substring(0, index);
-        
-        File fileDir = new File(dir);
-        if(!fileDir.exists()) {
-            System.out.println("create dir: " + dir);
-            fileDir.mkdirs();
-        }
-        
-        File file = new File(filePath);
-        if (!file.exists()) {
-            try {
-                file.createNewFile();
-            } catch (IOException e) {
-                throw new IOException(e.toString());
-            }
-        }
-        
-        try {
-            FileWriter out = null;
-            out = new FileWriter(file, true);
-            for (byte b : content)
-                out.append((char) b);
-            out.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-            throw e;
-        }
-    }
-    
     
     /**
      * Calculate how many splits are there for a specific file. It contains the starting point and EOF.

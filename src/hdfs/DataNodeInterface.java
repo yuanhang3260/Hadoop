@@ -33,6 +33,15 @@ public interface DataNodeInterface extends Remote {
      */
     public void addChunk(String filename, byte[] chunk, int chunkNum, String fromIP, int RMIPort) throws RemoteException;
 
+
+    /**
+     * private method : Delete a specific chunk of a file from this data node. 
+     * @param filename String The name of the file.
+     * @param chunkNum Integer The chunk number of file to be deleted.
+     * @throws RemoteException
+     */
+    private void removeChunk(HDFSFile file, HDFSChunk chunk) throws RemoteException;
+
     /**
      * Remove a file from this data node. 
      * @param filename String The name of the file.

@@ -14,8 +14,9 @@ import java.util.Hashtable;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 
+import global.FileIO;
+
 import hdfs.HDFSCommon;
-import hdfs.FileIO;
 import hdfs.HDFSChunk;
 import hdfs.HDFSFile;
 import hdfs.DFSClientInterface;
@@ -35,26 +36,17 @@ public class DataNode extends UnicastRemoteObject implements DataNodeInterface {
     
     /** Registry service port on DataNode */
     private Integer dataNodeRegPort;
-    /** RMI service port on DataNode */
-    private Integer dataNodePort;
     /** DataNOde RMI service name */
     private String dataNodeService;
-    /** Storage path on DataNode */
-    private String dataNodePath;
     
     /** RMI stub object. Cached once created.*/
-    private NameNodeInterface nameNode;
+    private NameNodeInterface nameNodeStub;
     /** NameNode IP address */
     private String nameNodeIP;
     /** NameNode registry service port */
     private Integer nameNodeRegPort;
     /** NameNode RMI service name */
     private String nameNodeService;
-    /** NameNode RMI service remote object, created when initializing DataNode */
-    private Registry nameNodeRegistry;
-    
-    /** Current DataNode RMI service */
-    private static Registry dataNodeRegistry;
     
     /** Connection cache pool of RMI services to other DataNodes.*/
     private Hashtable<String, DataNodeInterface> dataNodeList = new Hashtable<String, DataNodeInterface>();
@@ -65,36 +57,66 @@ public class DataNode extends UnicastRemoteObject implements DataNodeInterface {
     private boolean isRunning;
     /** Slots that are assigned but not necessarily occupied.*/
     private int reservedSlot;
+    /** Storage path on DataNode */
+    private String dataNodePath;
     
     
-        
     /**
      * While isRunning is true, this data node will keep running.
      * Calling terminate() will change isRunning to false.
      * @throws RemoteException
      */
     public DataNode() throws RemoteException {
-        this.isRunning = true;
+        super();
     }
     
-    /**
-     * Used right after system started. It creates connection to name node
-     * and retrieve services.
-     */
+    /** DataNode init -  */
     public void init() {
-        // try {
-        //     /* connect to NameNode */
-        //     System.out.println("Connecting to name node...");
-        //     this.nameNodeRegistry = LocateRegistry.getRegistry(this.nameNodeIP);
-        //     this.nameNode = (NameNodeInterface) this.nameNodeRegistry.lookup(this.nameNodeService);
+        /* read configuration file */
+        System.out.println("[LOG] Loading DataNode configuration data ...");
+        try {
+            FileIO.readConf(Common.HDFSConfPath, this);
+            System.out.println("[^_^] DataNode configured successfully");
+        } 
+        catch (IOException e1) {
+            e1.printStackTrace();
+            System.out.println("[Error**] Configuration failed");
+            System.exit(-1);
+        }
 
-        //     /* register DataNode on NameNode by calling NameNode RMI "registerDataNode"*/
-        //     this.nameNode.registerDataNode(InetAddress.getLocalHost().getHostAddress(), this.availableChunkSlot);
-        // } catch (RemoteException | NotBoundException | UnknownHostException e) {
-        //     e.printStackTrace();
-        //     System.err.println("[Error]: Connecting to NameNode " + nameNodeIP + ":" + nameNodeRegPort + " failed");
-        //     System.exit(-1);
-        // }
+        /* Initialize DataNode RMI service */
+        try {
+            System.out.println("[LOG] Setting up DataNode RMI service on port" + dataNodeRegPort);
+            DataNodeInterface dataNodeStub = (DataNodeInterface) UnicastRemoteObject.exportObject(this, 0);
+            Registry dataNodeRegistry = LocateRegistry.createRegistry(dataNodeRegPort);
+            /* rebind  RMi service */
+            nameNodeRegistry.rebind(dataNodeService, dataNodeStub);
+            System.out.println("[^_^] RMI service successfully set up");
+        }
+        catch (RemoteException e) {
+            e.printStackTrace();
+            System.out.println("[Error**] DataNode server init failed. Shutting down ...");
+            System.exit(-1);
+        }
+
+        /* connect to NameNode and register it */
+        try {
+            /* connect to NameNode */
+            System.out.println("Connecting to name node...");
+            Registry nameNodeRegistry = LocateRegistry.getRegistry(this.nameNodeIP, nameNodeRegPort);
+            nameNodeStub = (NameNodeInterface)this.nameNodeRegistry.lookup(nameNodeService);
+
+            /* register DataNode on NameNode by calling NameNode RMI "registerDataNode"*/
+            nameNodeStub.registerDataNode(InetAddress.getLocalHost().getHostAddress());
+        }
+        catch (RemoteException | NotBoundException | UnknownHostException e1) {
+            e1.printStackTrace();
+            System.err.println("[Error]: Connecting to NameNode " + nameNodeIP + ":" + nameNodeRegPort + " failed");
+            System.exit(-1);
+        }
+
+        /* enable running */
+        isRunning = true;
     }
 
     
@@ -191,6 +213,40 @@ public class DataNode extends UnicastRemoteObject implements DataNodeInterface {
         return;
     }
 
+    
+    /**
+     * private method : Delete a specific chunk of a file from this data node. 
+     * @param file HDFS file.
+     * @param chunkNum Integer The chunk number of file to be deleted.
+     * @throws RemoteException
+     */
+    private void removeChunk(String fileName, int chunkNum) throws RemoteException 
+    {
+        HDFSFile file = this.fileList.get(filename);
+        if (file == null) {
+            System.out.println("[Error**] " + filename + "not found");
+            return;
+        }
+
+        HDFSChunk chunk = file.getChunkTable().get(chunkNum);
+        if (chunk == null) {
+            return;
+        }
+
+        try {
+            file.removeChunk(chunkNum);
+            FileIO.deleteFile(this.dataNodePath + chunk.getchunkName());
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+            System.out.println("[Error**] Cannot remove " + chunk.getchunkName());
+            return;
+        }
+
+        System.out.println("[LOG] " + chunkName + " deleted from storage");
+        return;
+    }
+
 
     /**
      * RMI call : Remove a file from this data node. 
@@ -205,38 +261,24 @@ public class DataNode extends UnicastRemoteObject implements DataNodeInterface {
             return;
         }
    		
-        ArrayList<HDFSChunk> chunklist = file.getChunkList();
-        for (HDFSChunk chunk : chunklist) {
-            removeChunk(chunk.getChunkName());
-            file.removeChunk(chunk);
+        ConcurrentHashMap<Integer, HDFSChunk> chunkTable = file.getChunkTable();
+        for (Entry<Integer, HDFSChunk> row : chunkTable.entrySet()) {
+            HDFSChunk chunk = row.getValue();
+            try {
+                file.removeChunk(chunk.getChunkNum());
+                FileIO.deleteFile(this.dataNodePath + chunk.getchunkName());
+            }
+            catch (IOException e) {
+                e.printStackTrace();
+                System.out.println("[Error**] Cannot remove " + chunk.getchunkName());
+                return;
+            }
         }
         
         this.fileList.remove(filename);
         System.out.println("[LOG] " + filename + " successfully deleted");
         
         // TODO: remove replicas in other dataNodes?
-        return;
-    }
-
-
-    /**
-     * private method : Delete a specific chunk of a file from this data node. 
-     * @param filename String The name of the file.
-     * @param chunkNum Integer The chunk number of file to be deleted.
-     * @throws RemoteException
-     */
-    private void removeChunk(String chunkName) throws RemoteException 
-    {
-        try {
-            FileIO.deleteFile(this.dataNodePath + chunkName);
-        } 
-        catch (IOException e) {
-            e.printStackTrace();
-            System.out.println("[Error**] Cannot remove " + chunkName);
-            return;
-        }
-
-        System.out.println("[LOG] " + chunkName + " deleted from storage");
         return;
     }
 
@@ -266,13 +308,13 @@ public class DataNode extends UnicastRemoteObject implements DataNodeInterface {
             return false;
         }
         
-        ArrayList<HDFSChunk> chunklist = file.getChunkList();
-        for (HDFSChunk chunk : chunklist) {
-            if (chunk.getChunkName().equals(filename + "_" + chunkNum)) {
-            	return true;
-            }
+        ConcurrentHashMap<Integer, HDFSChunk> chunkTable = file.getChunkTable();
+        if (chunkTable.containsKey(chunkNum)) {
+            return true;
         }
-        return false;
+        else {
+            return false;
+        }
     }
 
     
@@ -290,47 +332,18 @@ public class DataNode extends UnicastRemoteObject implements DataNodeInterface {
      * Main method : Start up the DataNode
      */
     public static void main(String[] args) {
-        // System.out.println("Starting data node server...");
-        // DataNode dataNode = null;
-        // try {
-        //     dataNode = new DataNode();
-        // } catch (RemoteException e2) {
-        //     e2.printStackTrace();
-        //     System.exit(-1);
-        // }
+        System.out.println("[LOG] Starting data node server ...");
+        DataNode dataNode = null;
+        dataNode = new DataNode();
         
-        // //read configuration file
-        // System.out.println("Loading configuration data...");
-        // try {
-        //     FileIO.readConf(PathConfiguration.DFSConfPath, dataNode);
-        //     System.out.println("Configuration data loaded successfully...");
-        // } catch (IOException e1) {
-        //     e1.printStackTrace();
-        //     System.out.println("Loading configuration failed...");
-        //     System.exit(-1);
-        // }
+        /* setup connections */
+        dataNode.init();
         
-        // try {    //set up registry
-        //     System.out.println("Setting up registry server...");
-        //     unexportObject(dataNode, false);
-        //     DataNodeInterface stub = (DataNodeInterface) exportObject(dataNode, dataNode.dataNodePort);
-        //     dataNodeRegistry = LocateRegistry.createRegistry(dataNode.dataNodeRegPort);
-        //     dataNodeRegistry.rebind(dataNode.dataNodeService, stub);
-        // } catch (RemoteException e) {
-        //     e.printStackTrace();
-        //     System.err.println("System initialization failed...");
-        //     System.exit(-1);
-        // }
-        
-        // /* setup connections */
-        // dataNode.init();
-        
-        // System.out.println("System is running...");
-        // while (dataNode.isRunning) {
-        //     /* doing nothing, just waiting */
-        // }
+        while (dataNode.isRunning) {
+            /* doing nothing, just waiting */
+        }
 
-        // //shutting down
-        // System.out.println("System is shutting down...");
+        //shutting down
+        System.out.println("[LOG] DataNode shutting down...");
     }
 }
