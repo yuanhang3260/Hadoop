@@ -83,7 +83,7 @@ public class NameNode extends UnicastRemoteObject implements NameNodeInterface {
         isRunning = true;
     }
 
-
+    
     /** 
      * RMI call - register DataNode on NameNode
      * @param dataNoeIP DataNode IP address
