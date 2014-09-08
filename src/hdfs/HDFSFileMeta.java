@@ -1,6 +1,7 @@
 package hdfs;
 
 import java.io.Serializable;
+import java.util.Date;
 
 /**
  * HDFS files MetaData
@@ -37,7 +38,12 @@ public class HDFSFileMeta implements Serializable {
     }
 
     /** get file size */
-    int getModTime() {
+    void setSize(int size) {
+        this.size = size;
+    }
+
+    /** get file size */
+    Date getModTime() {
         return this.modTime;
     }
 }

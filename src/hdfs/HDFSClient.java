@@ -3,8 +3,10 @@ package hdfs;
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.FileInputStream;
 import java.io.InputStreamReader;
 import java.io.RandomAccessFile;
+import java.io.File;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.rmi.NotBoundException;
@@ -19,10 +21,10 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 
+
 import hdfs.HDFSFileMeta;
 import hdfs.DataNode;
 import hdfs.DataNodeInfo;
-import hdfs.HDFSClientInterface;
 
 import global.Common;
 import global.FileIO;
@@ -34,7 +36,7 @@ import global.FileIO;
  * @author Hang Yuan
  * @author Chuhan Yang
  */
-public class HDFSClient extends UnicastRemoteObject implements DFSClientInterface {
+public class HDFSClient extends UnicastRemoteObject {
     
     private static final long serialVersionUID = -7835407889702758301L;
     
@@ -78,9 +80,9 @@ public class HDFSClient extends UnicastRemoteObject implements DFSClientInterfac
     private ConcurrentHashMap<String, Hashtable<Integer, HashSet<String>>> dispatchList = new ConcurrentHashMap<String, Hashtable<Integer, HashSet<String>>>();
     
     
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception, IOException {
         System.out.println("[LOG] Starting client server...");
-        HDFSClient client = new DFSClient();
+        HDFSClient client = new HDFSClient();
         
         System.out.println("[^_^] Welcome to use HDFS Client v0.1");
         System.out.println("[^_^] For more information, please type: \"help\"");
@@ -169,7 +171,7 @@ public class HDFSClient extends UnicastRemoteObject implements DFSClientInterfac
      * This constructor is used by default.
      * @throws Exception
      */
-    public HDFSClient() throws Exception {
+    public HDFSClient() throws IOException, Exception {
         loadConf();
         init();
     }
@@ -210,7 +212,7 @@ public class HDFSClient extends UnicastRemoteObject implements DFSClientInterfac
             System.out.println("[LOG] Initializing client registry server ...");
             unexportObject(this, false);
             
-            DFSClientInterface stub = (DFSClientInterface)exportObject(this, clientPort);
+            HDFSClientInterface stub = (HDFSClientInterface)exportObject(this, clientPort);
             Registry clientRegistry = LocateRegistry.createRegistry(clientRegPort);
             clientRegistry.rebind(clientServiceName, stub);
             System.out.println("[^_^] Registry server set up on port: " + clientRegPort);
@@ -227,7 +229,7 @@ public class HDFSClient extends UnicastRemoteObject implements DFSClientInterfac
     public void getFileList() throws RemoteException {
         ConcurrentHashMap<String, HDFSFileMeta> list = null;
         try {
-            list = this.nameNode.listFiles();
+            list = this.nameNode.getFileTable();
         }
         catch (RemoteException e) {
             e.printStackTrace();
@@ -237,8 +239,8 @@ public class HDFSClient extends UnicastRemoteObject implements DFSClientInterfac
         System.out.println("===================== File List ========================");
         System.out.printf("%7s %7s %7s", "Name", "Size", "M_Time");
         for (Entry<String, HDFSFileMeta> row : list.entrySet()) {
-            HDFSFileInfo fileInfo = row.getValue();
-            System.out.printf("%7s %7s %7s", fileInfo.getName(), fileIn.getSize(), fileInfo.getModTime());
+            HDFSFileMeta fileInfo = row.getValue();
+            System.out.printf("%7s %7s %7s", fileInfo.getName(), fileInfo.getSize(), fileInfo.getModTime());
         }
         System.out.println("======================= End ============================");
         return;
@@ -251,7 +253,7 @@ public class HDFSClient extends UnicastRemoteObject implements DFSClientInterfac
     public void getNodeList() throws RemoteException {
         ConcurrentHashMap<String, DataNodeInfo> list = null;
         try {
-            list = this.nameNode.listDataNodes();
+            list = this.nameNode.getDataNodeTable();
         }
         catch (RemoteException e) {
             e.printStackTrace();
@@ -261,7 +263,7 @@ public class HDFSClient extends UnicastRemoteObject implements DFSClientInterfac
         System.out.println("===================== Node List ========================");
         for (Entry<String, DataNodeInfo> row : list.entrySet()) {
             DataNodeInfo dnInfo = row.getValue();
-            System.out.println("%7s %s:%p", dnInfo.name, dnInfo.registryIP, dnInfo.registryPort);
+            System.out.printf("%7s %s:%p", dnInfo.name, dnInfo.registryIP, dnInfo.registryPort);
         }
         System.out.println("======================= End ============================");
         return;
@@ -285,12 +287,12 @@ public class HDFSClient extends UnicastRemoteObject implements DFSClientInterfac
             return;
         }
         
-        ConcurrentHashMap<String, ArrayList<HDFSChunk>> chunkTable = file.getChunkTable();
-        for (Entry<Integer, HDFSChunk> row : chunkTable.entrySet()) {
+        ConcurrentHashMap<Integer, HDFSChunk> chunkTable = file.getChunkTable();
+        for (int i = 0; i < chunkTable.size(); i++) {
 
-            HDFSChunk chunk = row.getValue();
-            System.out.println("Fetching chunk " + chunk.getChunkName() + " ...");
-            byte chunk = new byte[chunk.getSize()];
+            HDFSChunk chunk = chunkTable.get(i);
+            System.out.println("[LOG] Fetching chunk " + chunk.getChunkName() + " ...");
+            byte[] buf = new byte[chunk.getChunkSize()];
 
             /** Try fetching data from at most 3 replicas in different dataNodes */
             for (DataNodeInfo dataNodeInfo : chunk.getReplicaDataNodes()) {
@@ -298,9 +300,9 @@ public class HDFSClient extends UnicastRemoteObject implements DFSClientInterfac
                     /* get dataNode RMI stub */
                     DataNodeInterface dataNode = getDataNodeService(dataNodeInfo.registryIP);
                     /* DataNode RMI call : readChunk(String fileName, int chunkNum) */
-                    chunk = dataNode.readChunk(fileName, chunkNum);
+                    buf = dataNode.readChunk(fileName, i);
                     /* append data to local output file */
-                    FileIO.appendFile(Common.HDFSDownLoadPath + fileName, chunk);
+                    FileIO.appendFile(Common.HDFSDownLoadPath + fileName, buf);
                     /* go to next chunk */
                     break;
                 }
@@ -330,12 +332,15 @@ public class HDFSClient extends UnicastRemoteObject implements DFSClientInterfac
     public void putFile(String fileName) throws RemoteException {
         /* import local file */
         File file = new File(fileName);
-        if (!file.exists()) {
-            System.err.println("[Error**] File " + fileName + " does not exist!");
-            return null;
-        }
 
-        FileInputStream fis = new FileInputStream(file);;
+        FileInputStream fis = null;
+        try {
+            fis = new FileInputStream(file);
+        }
+        catch (FileNotFoundException e) {
+            System.err.println("[Error**] File " + fileName + " does not exist!");
+            return;
+        }
         
         /* RMI call - create hdfs File on NameNode and get chunk distribution 
          * in HDFSFile Object returned bt NameNoe */
@@ -349,12 +354,12 @@ public class HDFSClient extends UnicastRemoteObject implements DFSClientInterfac
             return;
         }
 
-        ConcurrentHashMap<Integer, HDFSChunk> chunkTable = file.getChunkTable();
+        ConcurrentHashMap<Integer, HDFSChunk> chunkTable = hdfsFile.getChunkTable();
 
         /* begin pushing data to DataNodes based on meta data got from NameNode */
         for (int i = 0; i < chunkTable.size(); i++) {
             HDFSChunk chunk = chunkTable.get(i);
-            byte[] content = new byte[(int)chunk.getSize()];
+            byte[] content = new byte[(int)chunk.getChunkSize()];
 
             try {
                 fis.read(content);
@@ -364,16 +369,17 @@ public class HDFSClient extends UnicastRemoteObject implements DFSClientInterfac
                 return;
             }
             /* write 3 replicas */
-            for (DataNodeInfo dataNodeInfo : chunk.getReplicaDataNodes())
+            for (DataNodeInfo dataNodeInfo : chunk.getReplicaDataNodes()) {
                 try {
                     /* get dataNode RMI stub */
                     DataNodeInterface dataNode = getDataNodeService(dataNodeInfo.registryIP);
                     /* DataNode RMI call : addChunk */
-                    chunk = dataNode.addChunk(filename, content, chunk.getChunkNum(), clientIP, clientRegPort);
+                    dataNode.addChunk(fileName, content, chunk.getChunkNum(), clientIP, clientRegPort);
                 }
-                catch (RemoteException e2) {
-                    e.printStackTrace();
-                    throw e2;
+                catch (RemoteException | NotBoundException e2) {
+                    //TODO - how to handle?
+                    e2.printStackTrace();
+                    continue;
                 }
             }
         }
@@ -385,7 +391,7 @@ public class HDFSClient extends UnicastRemoteObject implements DFSClientInterfac
      * Delete a file on DFS.
      * @param file String The path of file to be deleted.
      */
-    public void removeFile(String filename) {
+    public void removeFile(String fileName) {
         HDFSFile hdfsFile = null;
         try {
             hdfsFile = this.nameNode.removeFile(fileName);
@@ -397,21 +403,22 @@ public class HDFSClient extends UnicastRemoteObject implements DFSClientInterfac
         }
 
         /* remove chunks from dataNode */
-        ConcurrentHashMap<Integer, HDFSChunk> chunkTable = file.getChunkTable();
+        ConcurrentHashMap<Integer, HDFSChunk> chunkTable = hdfsFile.getChunkTable();
         for (Entry<Integer, HDFSChunk> row : chunkTable.entrySet()) {
             
             HDFSChunk chunk = row.getValue();
             /* remove all three replicas */
-            for (DataNodeInfo dataNodeInfo : chunk.getReplicaDataNodes())
+            for (DataNodeInfo dataNodeInfo : chunk.getReplicaDataNodes()) {
                 try {
                     /* get dataNode RMI stub */
                     DataNodeInterface dataNode = getDataNodeService(dataNodeInfo.registryIP);
                     /* DataNode RMI call : addChunk */
-                    chunk = dataNode.removeChunk(filename, chunk.getChunkNum());
+                    dataNode.removeChunk(fileName, chunk.getChunkNum());
                 }
-                catch (RemoteException e2) {
+                catch (RemoteException | NotBoundException e2) {
+                    //TODO - how to handle?
                     e2.printStackTrace();
-                    throw e2;
+                    continue;
                 }
             }
         }

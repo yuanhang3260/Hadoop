@@ -1,4 +1,4 @@
-package hdfs;
+package global;
 
 import java.io.EOFException;
 import java.io.File;

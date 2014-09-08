@@ -91,7 +91,7 @@ public class HDFSChunk implements Serializable {
      * get chunk num
      * @return chunk name
      */
-    public String getChunkNum() {
+    public int getChunkNum() {
         return this.chunkNum;
     }    
     

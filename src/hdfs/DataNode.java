@@ -13,13 +13,14 @@ import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.Map.Entry;
 
 import global.FileIO;
+import global.Common;
 
 import hdfs.HDFSCommon;
 import hdfs.HDFSChunk;
 import hdfs.HDFSFile;
-import hdfs.DFSClientInterface;
 
 /**
  * DataNode Class
@@ -90,7 +91,7 @@ public class DataNode extends UnicastRemoteObject implements DataNodeInterface {
             DataNodeInterface dataNodeStub = (DataNodeInterface) UnicastRemoteObject.exportObject(this, 0);
             Registry dataNodeRegistry = LocateRegistry.createRegistry(dataNodeRegPort);
             /* rebind  RMi service */
-            nameNodeRegistry.rebind(dataNodeService, dataNodeStub);
+            dataNodeRegistry.rebind(dataNodeService, dataNodeStub);
             System.out.println("[^_^] RMI service successfully set up");
         }
         catch (RemoteException e) {
@@ -104,10 +105,10 @@ public class DataNode extends UnicastRemoteObject implements DataNodeInterface {
             /* connect to NameNode */
             System.out.println("Connecting to name node...");
             Registry nameNodeRegistry = LocateRegistry.getRegistry(this.nameNodeIP, nameNodeRegPort);
-            nameNodeStub = (NameNodeInterface)this.nameNodeRegistry.lookup(nameNodeService);
+            nameNodeStub = (NameNodeInterface) nameNodeRegistry.lookup(nameNodeService);
 
             /* register DataNode on NameNode by calling NameNode RMI "registerDataNode"*/
-            nameNodeStub.registerDataNode(InetAddress.getLocalHost().getHostAddress());
+            nameNodeStub.registerDataNode(InetAddress.getLocalHost().getHostAddress(), dataNodeRegPort, dataNodeService);
         }
         catch (RemoteException | NotBoundException | UnknownHostException e1) {
             e1.printStackTrace();
@@ -205,7 +206,7 @@ public class DataNode extends UnicastRemoteObject implements DataNodeInterface {
             file.addChunk(new HDFSChunk(filename, chunkNum));
         }
         else {
-            HDFSFile file = new HDFSFile(filename);
+            HDFSFile file = new HDFSFile(filename, 0);
             file.addChunk(new HDFSChunk(filename, chunkNum));
         }
 
@@ -215,16 +216,17 @@ public class DataNode extends UnicastRemoteObject implements DataNodeInterface {
 
     
     /**
-     * private method : Delete a specific chunk of a file from this data node. 
+     * RMI call - Delete a specific chunk of a file from this data node. 
      * @param file HDFS file.
      * @param chunkNum Integer The chunk number of file to be deleted.
      * @throws RemoteException
      */
-    private void removeChunk(String fileName, int chunkNum) throws RemoteException 
+    @Override
+    public void removeChunk(String fileName, int chunkNum) throws RemoteException 
     {
-        HDFSFile file = this.fileList.get(filename);
+        HDFSFile file = this.fileList.get(fileName);
         if (file == null) {
-            System.out.println("[Error**] " + filename + "not found");
+            System.out.println("[Error**] " + fileName + "not found");
             return;
         }
 
@@ -235,15 +237,15 @@ public class DataNode extends UnicastRemoteObject implements DataNodeInterface {
 
         try {
             file.removeChunk(chunkNum);
-            FileIO.deleteFile(this.dataNodePath + chunk.getchunkName());
+            FileIO.deleteFile(this.dataNodePath + chunk.getChunkName());
         }
         catch (IOException e) {
             e.printStackTrace();
-            System.out.println("[Error**] Cannot remove " + chunk.getchunkName());
+            System.out.println("[Error**] Cannot remove " + chunk.getChunkName());
             return;
         }
 
-        System.out.println("[LOG] " + chunkName + " deleted from storage");
+        System.out.println("[LOG] " + chunk.getChunkName() + " deleted from storage");
         return;
     }
 
@@ -253,11 +255,12 @@ public class DataNode extends UnicastRemoteObject implements DataNodeInterface {
      * @param filename String The name of the file.
      * @throws RemoteException
      */
-    public void removeFile(String filename) throws RemoteException
+    @Override
+    public void removeFile(String fileName) throws RemoteException
     {
-        HDFSFile file = this.fileList.get(filename);
+        HDFSFile file = this.fileList.get(fileName);
         if (file == null) {
-            System.out.println("[Error**] " + filename + "not found");
+            System.out.println("[Error**] " + fileName + "not found");
             return;
         }
    		
@@ -266,17 +269,17 @@ public class DataNode extends UnicastRemoteObject implements DataNodeInterface {
             HDFSChunk chunk = row.getValue();
             try {
                 file.removeChunk(chunk.getChunkNum());
-                FileIO.deleteFile(this.dataNodePath + chunk.getchunkName());
+                FileIO.deleteFile(this.dataNodePath + chunk.getChunkName());
             }
             catch (IOException e) {
                 e.printStackTrace();
-                System.out.println("[Error**] Cannot remove " + chunk.getchunkName());
+                System.out.println("[Error**] Cannot remove " + chunk.getChunkName());
                 return;
             }
         }
         
-        this.fileList.remove(filename);
-        System.out.println("[LOG] " + filename + " successfully deleted");
+        this.fileList.remove(fileName);
+        System.out.println("[LOG] " + fileName + " successfully deleted");
         
         // TODO: remove replicas in other dataNodes?
         return;
@@ -319,7 +322,7 @@ public class DataNode extends UnicastRemoteObject implements DataNodeInterface {
 
     
     /**
-     * Terminate this data node.
+     * RMI call - Terminate this data node.
      * @throws RemoteException
      */
     @Override
@@ -331,19 +334,20 @@ public class DataNode extends UnicastRemoteObject implements DataNodeInterface {
     /**
      * Main method : Start up the DataNode
      */
-    public static void main(String[] args) {
+    public static void main(String[] args) throws RemoteException {
         System.out.println("[LOG] Starting data node server ...");
         DataNode dataNode = null;
         dataNode = new DataNode();
         
         /* setup connections */
         dataNode.init();
-        
+        System.out.println("[LOG] DataNode Initialized");
+
         while (dataNode.isRunning) {
             /* doing nothing, just waiting */
         }
 
         //shutting down
-        System.out.println("[LOG] DataNode shutting down...");
+        System.out.println("[LOG] DataNode is shutting down...");
     }
 }

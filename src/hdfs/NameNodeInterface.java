@@ -20,16 +20,26 @@ import hdfs.DataNodeInfo;
 public interface NameNodeInterface extends Remote {
     
     /**
+     * Register DataNode on NameNode
+     * @param dataNodeIP dataNode IP address
+     * @param dataNodeRegPort dataNode RMI service registry port
+     * @param dataNodeService dataNode service name
+     * @throws RemoteException
+     */
+    public void registerDataNode(String dataNodeIP, int dataNodeRegPort, String dataNodeService) 
+                                 throws RemoteException;
+
+    /**
      * List all files in HDFS
      * @throws RemoteException
      */
-    public HashMap<String, HDFSFile> listFiles() throws RemoteException;
+    public ConcurrentHashMap<String, HDFSFileMeta> getFileTable() throws RemoteException;
 
     /**
      * List all active DataNodes currently registered in NameNode
      * @throws RemoteException
      */
-    public HashMap<String, DataNodeInfo> listDataNodes() throws RemoteException;
+    public ConcurrentHashMap<String, DataNodeInfo> getDataNodeTable() throws RemoteException;
 
     /**
      * get file from HDFS
@@ -41,12 +51,15 @@ public interface NameNodeInterface extends Remote {
      * create file on HDFS
      * @throws RemoteException
      */
-    public HDFSFile createFile(String fileName, int size) throws RemoteException;
+    public HDFSFile createFile(String fileName, long size) throws RemoteException;
 
     /**
      * remove file on HDFS
      * @throws RemoteException
      */
     public HDFSFile removeFile(String fileName) throws RemoteException;
+
+    /** terminate the nameNode */
+    public void terminate();
 
 }

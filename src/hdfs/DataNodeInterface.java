@@ -40,7 +40,7 @@ public interface DataNodeInterface extends Remote {
      * @param chunkNum Integer The chunk number of file to be deleted.
      * @throws RemoteException
      */
-    private void removeChunk(HDFSFile file, HDFSChunk chunk) throws RemoteException;
+    public void removeChunk(String fileName, int chunkNum) throws RemoteException;
 
     /**
      * Remove a file from this data node. 

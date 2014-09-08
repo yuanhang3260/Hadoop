@@ -29,13 +29,13 @@ public class HDFSFile extends HDFSFileMeta implements Serializable {
      * @param name file name
      */
     public HDFSFile(String name, int size) {
-        this.super(name, size);
-        chunkList = new ConcurrentHashMap<Integer, HDFSChunk>();
+        super(name, size);
+        chunkTable = new ConcurrentHashMap<Integer, HDFSChunk>();
     }
     
-    /** get chunkList */
+    /** get chunkTable */
     public ConcurrentHashMap<Integer, HDFSChunk> getChunkTable() {
-        return this.chunkList;
+        return this.chunkTable;
     }
 
     /**
@@ -43,7 +43,8 @@ public class HDFSFile extends HDFSFileMeta implements Serializable {
      * @param index chunk index in this file
      */
     public void addChunk(HDFSChunk chunk) {
-        this.chunkList.put(chunk.getChunkNum(), chunk);
+        this.chunkTable.put(chunk.getChunkNum(), chunk);
+        this.setSize(this.getSize() + chunk.getChunkSize());
     }
     
     /**
@@ -51,7 +52,7 @@ public class HDFSFile extends HDFSFileMeta implements Serializable {
      * @param index chunk index in this file
      */
     public void removeChunk(int chunkNum) {
-        this.chunkList.remove(chunkNum);
+        this.chunkTable.remove(chunkNum);
     }
 
 }

@@ -32,6 +32,7 @@ public class NameNode extends UnicastRemoteObject implements NameNodeInterface {
     private static final long serialVersionUID = 455874693232909953L;
     /** running status */
     private static boolean isRunning;
+
     /** NameNode registry service port, read from dfs.conf*/
     private static Integer nameNodeRegPort;
     /** NameNode RMI service name, read from dfs.conf*/
@@ -41,6 +42,8 @@ public class NameNode extends UnicastRemoteObject implements NameNodeInterface {
     ConcurrentHashMap<String, DataNodeInfo> dataNodeTable = new ConcurrentHashMap<String, DataNodeInfo>();
     /** file Table */
     ConcurrentHashMap<String, HDFSFile> fileTable = new ConcurrentHashMap<String, HDFSFile>();
+    /** file meta Table */
+    ConcurrentHashMap<String, HDFSFileMeta> fileMetaTable = new ConcurrentHashMap<String, HDFSFileMeta>();
 
     /** Constructor */
     public NameNode() throws RemoteException {
@@ -48,7 +51,7 @@ public class NameNode extends UnicastRemoteObject implements NameNodeInterface {
     }
 
     /** Init NameNode */
-    public init() {
+    public void init() {
         /* Load configuration */
         System.out.println("[LOG] Loading NameNode configuration data ...");
         try {
@@ -80,18 +83,83 @@ public class NameNode extends UnicastRemoteObject implements NameNodeInterface {
         isRunning = true;
     }
 
+
     /** 
      * RMI call - register DataNode on NameNode
      * @param dataNoeIP DataNode IP address
      */
     @Override
-    public void registerDataNode(String dataNodeIP) throws RemoteException {
-        this.dataNodeAvailableSlotList.put(dataNodeIP, availableSlot);
-        this.dataNodeStatusList.put(dataNodeIP);
-        System.out.println("[LOG] "+ dataNodeIP + " added to DataNode list");
+    public void registerDataNode(String dataNodeIP, int dataNodeRegPort, String dataNodeService) 
+                                 throws RemoteException
+    {
+        this.dataNodeTable.put(dataNodeIP, 
+                               new DataNodeInfo(dataNodeIP, dataNodeRegPort,dataNodeService)
+                               );
+        System.out.println("[LOG] "+ dataNodeIP + ":" + dataNodeRegPort + " added to DataNode list");
     }
 
-    /** stop the NameNode */
+
+    /**
+     * RMI call - List all files in HDFS
+     * @throws RemoteException
+     */
+    @Override
+    public ConcurrentHashMap<String, HDFSFileMeta> getFileTable() throws RemoteException {
+        return this.fileMetaTable;
+    }
+
+
+    /**
+     * RMI call - List all active DataNodes currently registered in NameNode
+     * @throws RemoteException
+     */
+    @Override
+    public ConcurrentHashMap<String, DataNodeInfo> getDataNodeTable() throws RemoteException {
+        return this.dataNodeTable;
+    }
+
+
+    /**
+     * RMI call - get file from HDFS
+     * @throws RemoteException
+     * @param fielName file name
+     * @return HDFSFile or null if fileName does not exist
+     */
+    @Override
+    public HDFSFile getFile(String fileName) throws RemoteException {
+        return fileTable.get(fileName);
+    }
+
+
+    /**
+     * RMI call - create file on HDFS
+     * @throws RemoteException
+     */
+    @Override
+    public HDFSFile createFile(String fileName, long size) throws RemoteException {
+        //TODO - need carefull workflow design
+        return null;
+    }
+
+
+    /**
+     * RMI call - remove file on HDFS
+     * @throws RemoteException
+     */
+    @Override
+    public HDFSFile removeFile(String fileName) throws RemoteException {
+        //TODO - need carefull workflow design
+        if (fileTable.containsKey(fileName)) {
+            HDFSFile file = fileTable.get(fileName);
+            fileTable.remove(fileName);
+            fileMetaTable.remove(fileName);
+            return file;
+        }
+        return null;
+    }
+
+
+    /** RMI call - terminate the NameNode */
     @Override
     public void terminate() {
         isRunning = false;
@@ -100,16 +168,16 @@ public class NameNode extends UnicastRemoteObject implements NameNodeInterface {
 
     /** start up NameNode */
     public static void main(String[] args) throws RemoteException {
-        System.out.println("Starting name node server...");
+        System.out.println("[LOG] Starting name node server...");
         NameNode nameNode = new NameNode();
-
+        
         /* init */
         nameNode.init();
+        System.out.println("[LOG] NameNode Initialized");
 
-        System.out.println("System is running...");
         while (isRunning) {
-
+            /* do nothing */
         }
-        System.out.println("System is shuting down...");
+        System.out.println("NameNode is shuting down...");
     }
 }
