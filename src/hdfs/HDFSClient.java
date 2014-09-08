@@ -25,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import hdfs.HDFSFileMeta;
 import hdfs.DataNode;
 import hdfs.DataNodeInfo;
+import hdfs.HDFSClientInterface;
 
 import global.Common;
 import global.FileIO;
@@ -36,7 +37,7 @@ import global.FileIO;
  * @author Hang Yuan
  * @author Chuhan Yang
  */
-public class HDFSClient extends UnicastRemoteObject {
+public class HDFSClient extends UnicastRemoteObject implements HDFSClientInterface{
     
     private static final long serialVersionUID = -7835407889702758301L;
     
@@ -86,7 +87,8 @@ public class HDFSClient extends UnicastRemoteObject {
         
         System.out.println("[^_^] Welcome to use HDFS Client v0.1");
         System.out.println("[^_^] For more information, please type: \"help\"");
-        while (true) {
+        boolean exit = false;
+        while (!exit) {
             System.out.print("DataNode> ");
             
             BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
@@ -104,7 +106,7 @@ public class HDFSClient extends UnicastRemoteObject {
                         client.putFile(cmdSplit[1]);
                     } 
                     else {
-                        System.out.println("[Error**] number of parameters.");
+                        System.out.println("[Error**] Invalid number of parameters.");
                         System.out.println("Usage: put <src_file_path>");
                     }
                     break;
@@ -113,7 +115,7 @@ public class HDFSClient extends UnicastRemoteObject {
                         client.getFile(cmdSplit[1]);
                     }
                     else {
-                        System.out.println("[Error**] number of parameters.");
+                        System.out.println("[Error**] Invalid number of parameters.");
                         System.out.println("Usage: get <file_name> <target_path>");
                     }
                     break;
@@ -122,7 +124,7 @@ public class HDFSClient extends UnicastRemoteObject {
                         client.getFileList();
                     }
                     else {
-                        System.out.println("[Error**] number of parameters.");
+                        System.out.println("[Error**] Invalid number of parameters.");
                         System.out.println("Usage: ls");
                     }
                     break;
@@ -131,7 +133,7 @@ public class HDFSClient extends UnicastRemoteObject {
                         client.getNodeList();
                     }
                     else {
-                        System.out.println("[Error**] number of parameters.");
+                        System.out.println("[Error**] Invalid number of parameters.");
                         System.out.println("Usage: dfs nodes");
                     }
                     break;
@@ -140,7 +142,7 @@ public class HDFSClient extends UnicastRemoteObject {
                         client.removeFile(cmdSplit[1]);
                     }
                     else {
-                        System.out.println("[Error**] number of parameters.");
+                        System.out.println("[Error**] Invalid number of parameters.");
                         System.out.println("Usage: rm <file_name>");
                     }
                     break;
@@ -160,8 +162,11 @@ public class HDFSClient extends UnicastRemoteObject {
                     System.out.println("\"rm\": remove a file on DFS.");
                     System.out.println("Usage: dfs rm <file_name>");
                     break;
+                case "exit":
+                    //exit = true;
+                    break;
                 default:
-                    System.out.println("Unrecognized command. Please use \"dfs help\" to get more details.");
+                    System.out.println("Unknown command. Please use \"dfs help\" to get more details.");
                     break;
             } /* end switch */
         } /* end while */
@@ -212,7 +217,7 @@ public class HDFSClient extends UnicastRemoteObject {
             System.out.println("[LOG] Initializing client registry server ...");
             unexportObject(this, false);
             
-            HDFSClientInterface stub = (HDFSClientInterface)exportObject(this, clientPort);
+            HDFSClientInterface stub = (HDFSClientInterface) UnicastRemoteObject.exportObject(this, clientPort);
             Registry clientRegistry = LocateRegistry.createRegistry(clientRegPort);
             clientRegistry.rebind(clientServiceName, stub);
             System.out.println("[^_^] Registry server set up on port: " + clientRegPort);
@@ -237,10 +242,10 @@ public class HDFSClient extends UnicastRemoteObject {
             return;
         }
         System.out.println("===================== File List ========================");
-        System.out.printf("%7s %7s %7s", "Name", "Size", "M_Time");
+        System.out.printf("%-15s %-15s %-15s\n", "Name", "Size", "M_Time");
         for (Entry<String, HDFSFileMeta> row : list.entrySet()) {
             HDFSFileMeta fileInfo = row.getValue();
-            System.out.printf("%7s %7s %7s", fileInfo.getName(), fileInfo.getSize(), fileInfo.getModTime());
+            System.out.printf("%-15s %-15s %-15s", fileInfo.getName(), fileInfo.getSize(), fileInfo.getModTime());
         }
         System.out.println("======================= End ============================");
         return;
@@ -263,7 +268,7 @@ public class HDFSClient extends UnicastRemoteObject {
         System.out.println("===================== Node List ========================");
         for (Entry<String, DataNodeInfo> row : list.entrySet()) {
             DataNodeInfo dnInfo = row.getValue();
-            System.out.printf("%7s %s:%p", dnInfo.name, dnInfo.registryIP, dnInfo.registryPort);
+            System.out.printf("%7s %s:%s\n", dnInfo.name, dnInfo.registryIP, dnInfo.registryPort);
         }
         System.out.println("======================= End ============================");
         return;
@@ -302,14 +307,14 @@ public class HDFSClient extends UnicastRemoteObject {
                     /* DataNode RMI call : readChunk(String fileName, int chunkNum) */
                     buf = dataNode.readChunk(fileName, i);
                     /* append data to local output file */
-                    FileIO.appendFile(Common.HDFSDownLoadPath + fileName, buf);
+                    FileIO.appendFile(Common.LocalFSPath + fileName, buf);
                     /* go to next chunk */
                     break;
                 }
                 catch (IOException e) {
                     System.err.println("[Error**] Exception occurs when downloading file...");
                     try {
-                        FileIO.deleteFile(Common.HDFSDownLoadPath + fileName);
+                        FileIO.deleteFile(Common.LocalFSPath + fileName);
                         return;
                     }
                     catch (IOException e1) {

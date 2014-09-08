@@ -59,7 +59,4 @@ public interface NameNodeInterface extends Remote {
      */
     public HDFSFile removeFile(String fileName) throws RemoteException;
 
-    /** terminate the nameNode */
-    public void terminate();
-
 }

@@ -30,7 +30,7 @@ import hdfs.HDFSFile;
  * @author Hang Yuan
  * @author Chuhan Yang
  */
-public class DataNode extends UnicastRemoteObject implements DataNodeInterface {
+public class DataNode implements DataNodeInterface {
 
     /** serial Version UID */
     private static final long serialVersionUID = 7965875955130649094L;
@@ -87,12 +87,12 @@ public class DataNode extends UnicastRemoteObject implements DataNodeInterface {
 
         /* Initialize DataNode RMI service */
         try {
-            System.out.println("[LOG] Setting up DataNode RMI service on port" + dataNodeRegPort);
+            System.out.println("[LOG] Setting up DataNode RMI service on port " + dataNodeRegPort);
             DataNodeInterface dataNodeStub = (DataNodeInterface) UnicastRemoteObject.exportObject(this, 0);
             Registry dataNodeRegistry = LocateRegistry.createRegistry(dataNodeRegPort);
             /* rebind  RMi service */
             dataNodeRegistry.rebind(dataNodeService, dataNodeStub);
-            System.out.println("[^_^] RMI service successfully set up");
+            System.out.println("[^_^] RMI service set up successfully");
         }
         catch (RemoteException e) {
             e.printStackTrace();
@@ -115,6 +115,9 @@ public class DataNode extends UnicastRemoteObject implements DataNodeInterface {
             System.err.println("[Error]: Connecting to NameNode " + nameNodeIP + ":" + nameNodeRegPort + " failed");
             System.exit(-1);
         }
+
+        /* set dataNode storage path */
+        dataNodePath = "./DataNode-" + dataNodeRegPort;
 
         /* enable running */
         isRunning = true;

@@ -7,13 +7,13 @@ package global;
  * @author Chuhan Yang
  */
 public class Common {
-
-	/** hdfs's configuration file path */
-	public static final String HDFSConfPath = "/conf/dfs.conf";
-	/** hdfs download file path */
-	public static final String HDFSDownLoadPath = "/download/";
-	/** Map-Reduce's configuration file path */
-	public static final String MapReducePath = "/Users/conf/mapred.conf";
-	/** Map-Reduce's configuration file path */
-	public static final String SlaveListPath = "/Users/conf/slaveList";
+    
+    /** hdfs's configuration file path */
+    public static final String HDFSConfPath = "../conf/hdfs.conf";
+    /** local file system path */
+    public static final String LocalFSPath = "../local";
+    /** Map-Reduce's configuration file path */
+    public static final String MapReducePath = "/Users/conf/mapred.conf";
+    /** Map-Reduce's configuration file path */
+    public static final String SlaveListPath = "/Users/conf/slaveList";
 }

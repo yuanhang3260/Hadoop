@@ -27,7 +27,7 @@ import hdfs.HDFSClientInterface;
  * @author Hang Yuan
  * @author Chuhan Yang
  */
-public class NameNode extends UnicastRemoteObject implements NameNodeInterface {
+public class NameNode implements NameNodeInterface {
     /** serial Version UID */
     private static final long serialVersionUID = 455874693232909953L;
     /** running status */
@@ -66,12 +66,12 @@ public class NameNode extends UnicastRemoteObject implements NameNodeInterface {
 
         /* Initialize NameNode RMI service */
         try {
-            System.out.println("[LOG] Setting up NameNode RMI service on port" + nameNodeRegPort);
+            System.out.println("[LOG] Setting up NameNode RMI service on port " + nameNodeRegPort);
             NameNodeInterface nameNodeStub = (NameNodeInterface) UnicastRemoteObject.exportObject(this, 0);
             Registry nameNodeRegistry = LocateRegistry.createRegistry(nameNodeRegPort);
             /* rebind  RMi service */
             nameNodeRegistry.rebind(nameNodeService, nameNodeStub);
-            System.out.println("[^_^] RMI service successfully set up");
+            System.out.println("[^_^] RMI service set up successfully");
         }
         catch (RemoteException e) {
             e.printStackTrace();
@@ -156,13 +156,6 @@ public class NameNode extends UnicastRemoteObject implements NameNodeInterface {
             return file;
         }
         return null;
-    }
-
-
-    /** RMI call - terminate the NameNode */
-    @Override
-    public void terminate() {
-        isRunning = false;
     }
 
 

@@ -32,6 +32,19 @@ public class FileIO {
      * @throws IOException
      */
     public static byte[] readFile(String filename) throws IOException {
+        int index = filename.length() - 1;
+        while(index >= 0 && filename.charAt(index) != '/') {
+            index--;
+        }
+        String dir = filename.substring(0, index);
+        
+        /* create dir if necessary */
+        File fileDir = new File(dir);
+        if(!fileDir.exists()) {
+            System.out.println("create dir: " + dir);
+            fileDir.mkdirs();
+        }
+        
         File file = new File(filename);
         if (!file.exists()) {
             System.err.println("[Error**] File " + filename + " does not exist!");
