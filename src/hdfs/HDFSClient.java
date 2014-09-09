@@ -285,8 +285,7 @@ public class HDFSClient extends UnicastRemoteObject implements HDFSClientInterfa
     
     /**
      * Download a file from HDFS.
-     * @param file file Name on HDFS
-     * @param file 
+     * @param fileName file Name on HDFS
      */
     public void getFile(String fileName) throws RemoteException {
 
@@ -340,11 +339,11 @@ public class HDFSClient extends UnicastRemoteObject implements HDFSClientInterfa
 
     /**
      * Upload a file from local to HDFS.
-     * @param filePath String The path of input file.
+     * @param fileName path of local input file.
      */
     public void putFile(String fileName) throws RemoteException {
         /* import local file */
-        File file = new File(fileName);
+        File file = new File(Common.LocalFSPath + fileName);
 
         FileInputStream fis = null;
         try {
@@ -402,7 +401,7 @@ public class HDFSClient extends UnicastRemoteObject implements HDFSClientInterfa
     
     /**
      * Delete a file on DFS.
-     * @param file String The path of file to be deleted.
+     * @param fileName String The path of file to be deleted.
      */
     public void removeFile(String fileName) {
         HDFSFile hdfsFile = null;
