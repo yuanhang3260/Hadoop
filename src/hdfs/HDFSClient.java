@@ -96,7 +96,7 @@ public class HDFSClient extends UnicastRemoteObject implements HDFSClientInterfa
         System.out.println("[^_^] For more information, please type: \"help\"");
         boolean exit = false;
         while (!exit) {
-            System.out.print("DataNode> ");
+            System.out.print("HDFSClient> ");
             
             BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
             String command;
