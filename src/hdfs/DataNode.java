@@ -103,7 +103,7 @@ public class DataNode implements DataNodeInterface {
         /* connect to NameNode and register it */
         try {
             /* connect to NameNode */
-            System.out.println("Connecting to name node...");
+            System.out.println("[LOG] Connecting to name node...");
             Registry nameNodeRegistry = LocateRegistry.getRegistry(this.nameNodeIP, nameNodeRegPort);
             nameNodeStub = (NameNodeInterface) nameNodeRegistry.lookup(nameNodeService);
 

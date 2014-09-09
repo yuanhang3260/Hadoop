@@ -276,7 +276,7 @@ public class HDFSClient extends UnicastRemoteObject implements HDFSClientInterfa
         System.out.println("===================== Node List ========================");
         for (Entry<String, DataNodeInfo> row : list.entrySet()) {
             DataNodeInfo dnInfo = row.getValue();
-            System.out.printf("%7s %s:%s\n", dnInfo.name, dnInfo.registryIP, dnInfo.registryPort);
+            System.out.printf("%7s  %s:%s\n", dnInfo.name, dnInfo.registryIP, dnInfo.registryPort);
         }
         System.out.println("======================= End ============================");
         return;
